@@ -233,9 +233,8 @@
   // ==================== SORTING ====================
   function dueDayKey(task) {
     // Calendar day as YYYYMMDD, ignoring time of day.
-    if (!task.due || !task.due.date) return 0;
-    var datePart = (task.due.datetime || task.due.date).slice(0, 10);
-    return +datePart.replace(/-/g, '');
+    var s = dueStamp(task);
+    return s ? +s.slice(0, 10).replace(/-/g, '') : 0;
   }
 
   function compareTasks(a, b) {
@@ -252,18 +251,30 @@
   // ==================== DUE DATES ====================
   var NO_DUE = 8640000000000000; // max date: undated tasks sort last
 
+  // Due formats differ by API generation: REST v2 puts times in
+  // due.datetime; unified v1 embeds them in due.date itself
+  // ("2026-07-10T15:00:00"). Normalize through one accessor.
+  function dueStamp(task) {
+    if (!task.due) return null;
+    return task.due.datetime || task.due.date || null;
+  }
+
+  function hasDueTime(task) {
+    var s = dueStamp(task);
+    return !!s && s.indexOf('T') !== -1;
+  }
+
   function dueMillis(task) {
-    if (!task.due) return NO_DUE;
-    if (task.due.datetime) {
-      var t = Date.parse(task.due.datetime);
+    var s = dueStamp(task);
+    if (!s) return NO_DUE;
+    if (hasDueTime(task)) {
+      var t = Date.parse(s);
       return isNaN(t) ? NO_DUE : t;
     }
-    if (task.due.date) {
-      // All-day task: sort as end of that local day.
-      var p = task.due.date.split('-');
-      return new Date(+p[0], +p[1] - 1, +p[2], 23, 59, 59).getTime();
-    }
-    return NO_DUE;
+    // All-day task: sort as end of that local day.
+    var p = s.slice(0, 10).split('-');
+    var ms = new Date(+p[0], +p[1] - 1, +p[2], 23, 59, 59).getTime();
+    return isNaN(ms) ? NO_DUE : ms;
   }
 
   function formatClock(ms) {
@@ -282,7 +293,7 @@
     var startToday = new Date(); startToday.setHours(0, 0, 0, 0);
     var dayMs = 24 * 60 * 60 * 1000;
     var dayDiff = Math.floor((ms - startToday.getTime()) / dayMs);
-    var hasTime = !!task.due.datetime;
+    var hasTime = hasDueTime(task);
 
     if (hasTime && ms < now) {
       var lateMin = Math.round((now - ms) / 60000);
@@ -303,7 +314,8 @@
   function formatDueBadge(task) {
     if (!task.due) return '';
     var ms = dueMillis(task);
-    if (task.due.datetime) return formatClock(ms);
+    if (ms === NO_DUE) return '';
+    if (hasDueTime(task)) return formatClock(ms);
     var d = new Date(ms);
     var today = new Date();
     if (d.toDateString() === today.toDateString()) return 'Today';
@@ -432,13 +444,13 @@
 
     for (var i = 0; i < state.tasks.length; i++) {
       var task = state.tasks[i];
-      if (!task.due || !task.due.datetime) continue; // only timed tasks can pop
+      if (!hasDueTime(task)) continue; // only timed tasks can pop
       var due = dueMillis(task);
       if (due === NO_DUE) continue;
       var remindAt = due - leadMs;
       // Fire inside the window [remindAt, due + 5min]; skip if already fired for this due stamp.
       if (now >= remindAt && now <= due + 5 * 60 * 1000 &&
-          state.data.reminded[task.id] !== task.due.datetime) {
+          state.data.reminded[task.id] !== dueStamp(task)) {
         showReminder(task);
         return; // one popup at a time
       }
@@ -455,7 +467,7 @@
 
   function dismissReminder() {
     if (state.reminderTask) {
-      state.data.reminded[state.reminderTask.id] = state.reminderTask.due.datetime;
+      state.data.reminded[state.reminderTask.id] = dueStamp(state.reminderTask);
       saveData();
     }
     popup.classList.add('hidden');
