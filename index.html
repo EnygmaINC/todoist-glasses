@@ -62,6 +62,13 @@
         <h1>Reminders</h1>
       </header>
       <div class="content">
+        <p class="section-label">Auto-refresh task list:</p>
+        <div id="refresh-list" class="list-container">
+          <button class="list-item focusable" data-action="set-refresh" data-min="0"><span class="list-item-content"><span class="list-item-title">Off (manual only)</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-refresh" data-min="15"><span class="list-item-content"><span class="list-item-title">Every 15 minutes</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-refresh" data-min="30"><span class="list-item-content"><span class="list-item-title">Every 30 minutes</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-refresh" data-min="60"><span class="list-item-content"><span class="list-item-title">Every hour</span></span><span class="lead-check hidden">&#10003;</span></button>
+        </div>
         <p class="section-label">Remind me before each task is due:</p>
         <div id="lead-list" class="list-container">
           <button class="list-item focusable" data-action="set-lead" data-min="0"><span class="list-item-content"><span class="list-item-title">At due time</span></span><span class="lead-check hidden">&#10003;</span></button>

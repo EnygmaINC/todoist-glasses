@@ -66,8 +66,9 @@ body {
   flex: 1;
 }
 .header-meta {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 .back-btn {
   background: transparent;

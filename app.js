@@ -23,6 +23,7 @@
       token: null,
       apiBase: null,
       leadMinutes: 10,
+      autoRefreshMinutes: 0, // 0 = manual refresh only
       reminded: {},        // taskId -> due stamp already reminded for
     },
     tasks: [],
@@ -31,6 +32,7 @@
     detailTask: null,
     reminderTask: null,
     reminderTimer: null,
+    autoRefreshTimer: null,
   };
 
   // ==================== DOM REFS ====================
@@ -309,13 +311,19 @@
     if (el) el.textContent = text;
   }
 
+  // Live status: task count plus current time, refreshed by the 30s tick.
+  function updateStatus() {
+    if (state.error) return; // keep the "Offline" status visible
+    setStatus(state.tasks.length + ' task' + (state.tasks.length === 1 ? '' : 's') +
+      ' · ' + formatClock(Date.now()));
+  }
+
   function renderTasks() {
     var container = document.getElementById('task-list');
     if (!container) return;
     container.innerHTML = '';
 
-    setStatus(state.tasks.length + ' task' + (state.tasks.length === 1 ? '' : 's') +
-      ' · ' + formatClock(state.lastFetch || Date.now()));
+    updateStatus();
 
     if (state.tasks.length === 0) {
       container.innerHTML =
@@ -363,17 +371,35 @@
   }
 
   function renderSettings() {
-    document.querySelectorAll('#lead-list .list-item').forEach(function(item) {
-      var check = item.querySelector('.lead-check');
-      var active = +item.dataset.min === state.data.leadMinutes;
-      check.classList.toggle('hidden', !active);
+    var groups = [
+      { sel: '#lead-list .list-item', value: state.data.leadMinutes },
+      { sel: '#refresh-list .list-item', value: state.data.autoRefreshMinutes },
+    ];
+    groups.forEach(function(g) {
+      document.querySelectorAll(g.sel).forEach(function(item) {
+        var check = item.querySelector('.lead-check');
+        check.classList.toggle('hidden', +item.dataset.min !== g.value);
+      });
     });
   }
 
   // ==================== REMINDERS ====================
   function startReminderTimer() {
     if (state.reminderTimer) clearInterval(state.reminderTimer);
-    state.reminderTimer = setInterval(checkReminders, CONFIG.reminderTickMs);
+    state.reminderTimer = setInterval(function() {
+      updateStatus(); // keep the header clock current
+      checkReminders();
+    }, CONFIG.reminderTickMs);
+  }
+
+  function startAutoRefresh() {
+    if (state.autoRefreshTimer) clearInterval(state.autoRefreshTimer);
+    var mins = state.data.autoRefreshMinutes;
+    if (mins > 0) {
+      state.autoRefreshTimer = setInterval(function() {
+        if (state.data.token) loadTasks(true);
+      }, mins * 60 * 1000);
+    }
   }
 
   function checkReminders() {
@@ -510,6 +536,12 @@
         saveData();
         renderSettings();
         break;
+      case 'set-refresh':
+        state.data.autoRefreshMinutes = +element.dataset.min;
+        saveData();
+        renderSettings();
+        startAutoRefresh();
+        break;
       case 'sign-out':
         state.data.token = null;
         state.data.reminded = {};
@@ -603,6 +635,7 @@
     loadData();
     absorbTokenFromUrl();
     startReminderTimer();
+    startAutoRefresh();
 
     setTimeout(function() {
       navigateTo(state.data.token ? 'home' : 'setup', { addToHistory: false });
