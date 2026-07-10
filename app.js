@@ -7,6 +7,8 @@
     storageKey: 'mdg_todoist',
     // Unified API first; REST v2 fallback while it still answers.
     apiBases: ['https://api.todoist.com/api/v1', 'https://api.todoist.com/rest/v2'],
+    filterQuery: 'overdue | today', // Todoist's "Today" view
+
     cacheDuration: 5 * 60 * 1000,
     reminderTickMs: 30 * 1000,
   };
@@ -25,7 +27,6 @@
     },
     tasks: [],
     projects: {},          // id -> name
-    inboxProjectId: null,
     lastFetch: 0,
     detailTask: null,
     reminderTask: null,
@@ -125,9 +126,11 @@
     return [];
   }
 
+  // `path` may be a function of the API base, for endpoints whose shape
+  // differs between the unified v1 API and REST v2.
   function apiFetch(path) {
     var base = state.data.apiBase || CONFIG.apiBases[0];
-    var url = base + path;
+    var url = base + (typeof path === 'function' ? path(base) : path);
     return fetch(url, { headers: authHeaders() }).then(function(res) {
       if (res.status === 401 || res.status === 403) {
         var authErr = new Error('Invalid token. Re-open with ?token=...');
@@ -155,8 +158,11 @@
     // v1 paginates with next_cursor; v2 returns everything at once.
     var items = [];
     function page(cursor) {
-      var sep = path.indexOf('?') === -1 ? '?' : '&';
-      var url = path + sep + 'limit=200' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+      var url = function(base) {
+        var p = typeof path === 'function' ? path(base) : path;
+        var sep = p.indexOf('?') === -1 ? '?' : '&';
+        return p + sep + 'limit=200' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+      };
       return apiFetch(url).then(function(data) {
         items = items.concat(unwrap(data));
         if (data && data.next_cursor && items.length < 1000) {
@@ -181,24 +187,27 @@
     setLoading(true);
     clearError();
 
-    Promise.all([fetchAll('/projects'), fetchAll('/tasks')])
+    // The "Today" view: unified v1 filters via /tasks/filter?query=,
+    // REST v2 via /tasks?filter=. View options in the Sync API only affect
+    // Todoist's own clients, so the sort is applied here instead.
+    var todayTasks = function(base) {
+      var q = encodeURIComponent(CONFIG.filterQuery);
+      return base.indexOf('/rest/v2') !== -1
+        ? '/tasks?filter=' + q
+        : '/tasks/filter?query=' + q;
+    };
+
+    Promise.all([fetchAll('/projects'), fetchAll(todayTasks)])
       .then(function(results) {
         var projects = results[0];
         var tasks = results[1];
 
         state.projects = {};
-        state.inboxProjectId = null;
-        projects.forEach(function(p) {
-          state.projects[p.id] = p.name;
-          if (p.is_inbox_project || p.inbox_project) state.inboxProjectId = p.id;
-        });
+        projects.forEach(function(p) { state.projects[p.id] = p.name; });
 
-        // Keep the glanceable set: inbox tasks plus anything with a due date.
-        state.tasks = tasks
-          .filter(function(t) {
-            return t.project_id === state.inboxProjectId || t.due;
-          })
-          .sort(function(a, b) { return dueMillis(a) - dueMillis(b); });
+        // Priority first (p1 highest), then calendar day descending so
+        // today outranks overdue; within the same day, soonest time first.
+        state.tasks = tasks.sort(compareTasks);
 
         state.lastFetch = Date.now();
         setLoading(false);
@@ -216,6 +225,25 @@
         setError(err.message || 'Failed to reach Todoist');
         setStatus('Offline');
       });
+  }
+
+  // ==================== SORTING ====================
+  function dueDayKey(task) {
+    // Calendar day as YYYYMMDD, ignoring time of day.
+    if (!task.due || !task.due.date) return 0;
+    var datePart = (task.due.datetime || task.due.date).slice(0, 10);
+    return +datePart.replace(/-/g, '');
+  }
+
+  function compareTasks(a, b) {
+    // 1. Priority descending (API: 4 = p1/urgent ... 1 = p4/low).
+    var prio = (b.priority || 1) - (a.priority || 1);
+    if (prio !== 0) return prio;
+    // 2. Calendar day descending: today above overdue days.
+    var day = dueDayKey(b) - dueDayKey(a);
+    if (day !== 0) return day;
+    // 3. Same day: soonest time first (all-day tasks last within the day).
+    return dueMillis(a) - dueMillis(b);
   }
 
   // ==================== DUE DATES ====================
@@ -292,7 +320,7 @@
     if (state.tasks.length === 0) {
       container.innerHTML =
         '<div class="error-container"><div class="error-icon">&#127881;</div>' +
-        '<div class="error-message">All clear — nothing due.</div></div>';
+        '<div class="error-message">All clear — nothing due today.</div></div>';
       return;
     }
 
