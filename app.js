@@ -297,6 +297,19 @@
     return hasTime ? label + ' ' + formatClock(ms) : label;
   }
 
+  // Compact badge for list rows: just the time when one is set, "Today"
+  // for all-day today, a short date for other days, nothing when undated.
+  // (formatDue keeps the fuller wording for the detail screen and popup.)
+  function formatDueBadge(task) {
+    if (!task.due) return '';
+    var ms = dueMillis(task);
+    if (task.due.datetime) return formatClock(ms);
+    var d = new Date(ms);
+    var today = new Date();
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
   function dueBadgeClass(task) {
     if (!task.due) return 'badge-muted';
     var ms = dueMillis(task);
@@ -351,13 +364,16 @@
       title.textContent = task.content;
       content.appendChild(title);
 
-      var badge = document.createElement('span');
-      badge.className = 'list-item-badge ' + dueBadgeClass(task);
-      badge.textContent = formatDue(task);
-
       btn.appendChild(prio);
       btn.appendChild(content);
-      btn.appendChild(badge);
+
+      var badgeText = formatDueBadge(task);
+      if (badgeText) {
+        var badge = document.createElement('span');
+        badge.className = 'list-item-badge ' + dueBadgeClass(task);
+        badge.textContent = badgeText;
+        btn.appendChild(badge);
+      }
       container.appendChild(btn);
     });
   }
