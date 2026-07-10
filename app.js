@@ -24,6 +24,7 @@
       apiBase: null,
       leadMinutes: 10,
       autoRefreshMinutes: 0, // 0 = manual refresh only
+      pulseOverdue: 1,       // 1 = pulsating red highlight on overdue tasks
       reminded: {},        // taskId -> due stamp already reminded for
     },
     tasks: [],
@@ -334,7 +335,8 @@
 
     state.tasks.forEach(function(task) {
       var btn = document.createElement('button');
-      btn.className = 'list-item focusable';
+      btn.className = 'list-item focusable' +
+        (dueMillis(task) < Date.now() ? ' overdue' : '');
       btn.dataset.action = 'open-task';
       btn.dataset.id = task.id;
 
@@ -374,6 +376,7 @@
     var groups = [
       { sel: '#lead-list .list-item', value: state.data.leadMinutes },
       { sel: '#refresh-list .list-item', value: state.data.autoRefreshMinutes },
+      { sel: '#pulse-list .list-item', value: state.data.pulseOverdue },
     ];
     groups.forEach(function(g) {
       document.querySelectorAll(g.sel).forEach(function(item) {
@@ -390,6 +393,10 @@
       updateStatus(); // keep the header clock current
       checkReminders();
     }, CONFIG.reminderTickMs);
+  }
+
+  function applyPulseSetting() {
+    document.body.classList.toggle('pulse-enabled', !!state.data.pulseOverdue);
   }
 
   function startAutoRefresh() {
@@ -542,6 +549,12 @@
         renderSettings();
         startAutoRefresh();
         break;
+      case 'set-pulse':
+        state.data.pulseOverdue = +element.dataset.min;
+        saveData();
+        renderSettings();
+        applyPulseSetting();
+        break;
       case 'sign-out':
         state.data.token = null;
         state.data.reminded = {};
@@ -636,6 +649,7 @@
     absorbTokenFromUrl();
     startReminderTimer();
     startAutoRefresh();
+    applyPulseSetting();
 
     setTimeout(function() {
       navigateTo(state.data.token ? 'home' : 'setup', { addToHistory: false });

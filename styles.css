@@ -210,6 +210,19 @@ body {
   flex-shrink: 0;
 }
 
+/* Overdue highlight: gentle red pulse, gated by the settings toggle */
+body.pulse-enabled .list-item.overdue {
+  background: rgba(255, 68, 102, 0.15);
+  animation: pulse-red 2.4s ease-in-out infinite alternate;
+}
+body.pulse-enabled .list-item.overdue:focus {
+  background: rgba(255, 68, 102, 0.28);
+}
+@keyframes pulse-red {
+  from { background-color: rgba(255, 68, 102, 0.10); }
+  to   { background-color: rgba(255, 68, 102, 0.30); }
+}
+
 /* Priority dots (Todoist p1..p4) */
 .prio-1 { color: var(--danger); }
 .prio-2 { color: var(--accent-warm); }
