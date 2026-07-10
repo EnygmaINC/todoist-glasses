@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, height=600, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Glanceable Todoist task list for Meta Display Glasses: inbox and due tasks sorted soonest-first, with pop-up reminders before each task is due.">
+  <meta name="mrbd-web-app-capable" content="yes">
+  <title>Todoist Glance</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Home: task list -->
+    <div id="home" class="screen">
+      <header class="header">
+        <h1>Tasks</h1>
+        <span class="header-meta" id="status-indicator">Loading&hellip;</span>
+      </header>
+      <div class="content scroll-fade">
+        <div id="loading" class="loading-container hidden">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Fetching tasks&hellip;</div>
+        </div>
+        <div id="error" class="error-container hidden">
+          <div class="error-icon">&#9888;</div>
+          <div class="error-message">Something went wrong.</div>
+        </div>
+        <div id="task-list" class="list-container"></div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item primary focusable" data-action="refresh-tasks">&#8635; Refresh</button>
+        <button class="nav-item focusable" data-action="open-settings">&#9881; Settings</button>
+      </nav>
+    </div>
+
+    <!-- Task detail -->
+    <div id="detail" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1>Task</h1>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-title" id="detail-title"></div>
+          <div class="card-subtitle" id="detail-due"></div>
+        </div>
+        <div class="detail-rows">
+          <div class="detail-row"><span class="detail-label">Priority</span><span id="detail-priority"></span></div>
+          <div class="detail-row"><span class="detail-label">Project</span><span id="detail-project"></span></div>
+        </div>
+        <p class="detail-desc" id="detail-desc"></p>
+      </div>
+    </div>
+
+    <!-- Settings: reminder lead time -->
+    <div id="settings" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1>Reminders</h1>
+      </header>
+      <div class="content">
+        <p class="section-label">Remind me before each task is due:</p>
+        <div id="lead-list" class="list-container">
+          <button class="list-item focusable" data-action="set-lead" data-min="0"><span class="list-item-content"><span class="list-item-title">At due time</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-lead" data-min="5"><span class="list-item-content"><span class="list-item-title">5 minutes before</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-lead" data-min="10"><span class="list-item-content"><span class="list-item-title">10 minutes before</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-lead" data-min="15"><span class="list-item-content"><span class="list-item-title">15 minutes before</span></span><span class="lead-check hidden">&#10003;</span></button>
+          <button class="list-item focusable" data-action="set-lead" data-min="30"><span class="list-item-content"><span class="list-item-title">30 minutes before</span></span><span class="lead-check hidden">&#10003;</span></button>
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item danger focusable" data-action="sign-out">Sign out</button>
+      </nav>
+    </div>
+
+    <!-- Setup: shown when no API token is stored -->
+    <div id="setup" class="screen hidden">
+      <header class="header">
+        <h1>Connect Todoist</h1>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-title">One-time setup</div>
+          <div class="setup-steps">
+            <p>1. On your computer, copy your API token from Todoist &rarr; Settings &rarr; Integrations &rarr; Developer.</p>
+            <p>2. Open this app once with the token in the URL:</p>
+            <p class="setup-url">this-app-url/?token=YOUR_TOKEN</p>
+            <p>3. The token is saved on this device and removed from the URL.</p>
+          </div>
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item primary focusable" data-action="retry-setup">&#8635; Check again</button>
+      </nav>
+    </div>
+
+  </div>
+
+  <!-- Reminder popup overlay (not a screen; takes focus while visible) -->
+  <div id="reminder-popup" class="popup-overlay hidden">
+    <div class="popup-card">
+      <div class="popup-kicker">&#9200; Task due</div>
+      <div class="popup-title" id="reminder-title"></div>
+      <div class="popup-due" id="reminder-due"></div>
+      <div class="popup-actions">
+        <button class="nav-item primary focusable" data-action="reminder-dismiss">Dismiss</button>
+        <button class="nav-item focusable" data-action="reminder-view">View</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
