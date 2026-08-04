@@ -4,6 +4,11 @@ A glanceable **Todoist "Today" list for Meta Ray-Ban Display glasses**. Shows to
 
 **Live app:** https://enygmainc.github.io/todoist-glasses/
 
+<p float="left">
+  <img src="docs/screenshot-today.png" alt="Today list on Meta Ray-Ban Display: priority-sorted tasks with due badges and an overdue task pulsing red" width="360">
+  <img src="docs/screenshot-reminder.png" alt="Reminder popup overlay on Meta Ray-Ban Display, shown ahead of a task's due time" width="360">
+</p>
+
 ## Features
 
 - **Today view only** — fetches Todoist's `overdue | today` filter, nothing else.
